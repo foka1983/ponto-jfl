@@ -30,6 +30,8 @@
     colaborador_nao_encontrado: "Colaborador não encontrado.",
     colaborador_id_obrigatorio: "Selecione um colaborador.",
     predio_invalido: "Prédio selecionado é inválido.",
+    predio_obrigatorio: "Selecione o prédio do colaborador.",
+    senha_invalida: "A senha inicial precisa ter pelo menos 6 caracteres.",
   };
   function friendly(msg) {
     return ERROS[msg] || msg || "Ocorreu um erro inesperado. Tente novamente.";
@@ -229,6 +231,12 @@
           badgeClass = "badge-green";
         }
         horas = reg.totalHoras;
+        // Mais de um par entrada/saída no mesmo dia geralmente indica uma
+        // correção manual (colaborador bateu errado e bateu de novo).
+        const totalPares = reg.pares.length + (reg.aberto ? 1 : 0);
+        if (totalPares > 1) {
+          registrosHtml += ` <span class="badge badge-grey" title="Mais de uma entrada/saída neste dia — pode indicar uma correção manual">Múltiplos registros</span>`;
+        }
       } else if (isWeekend) {
         situacao = "—";
         badgeClass = "badge-grey";
@@ -520,12 +528,13 @@
       .eq("ativo", true)
       .order("nome", { ascending: true });
     state.prediosCache = error ? [] : data || [];
-    const sel = $("nc-predio");
-    if (sel) {
-      sel.innerHTML =
-        '<option value="">Selecione…</option>' +
-        state.prediosCache.map((p) => `<option value="${p.id}">${escapeHtml(p.nome)}</option>`).join("");
-    }
+    const opts =
+      '<option value="">Selecione…</option>' +
+      state.prediosCache.map((p) => `<option value="${p.id}">${escapeHtml(p.nome)}</option>`).join("");
+    ["nc-predio", "pres-predio"].forEach((id) => {
+      const sel = $(id);
+      if (sel) sel.innerHTML = opts;
+    });
   }
 
   // ── Admin: colaboradores ──────────────────────────────────
@@ -538,6 +547,7 @@
     $("rel-inicio").value = inicioMes;
     $("rel-fim").value = hoje;
     $("falta-data").value = hoje;
+    $("pres-data").value = hoje;
     await carregarFaltas();
   }
 
@@ -548,12 +558,12 @@
       .order("nome", { ascending: true });
     const tbody = $("tbody-colaboradores");
     if (error) {
-      tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Não foi possível carregar os colaboradores.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Não foi possível carregar os colaboradores.</td></tr>';
       return;
     }
     state.colaboradoresCache = data || [];
     if (!data.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Nenhum colaborador cadastrado ainda.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Nenhum colaborador cadastrado ainda.</td></tr>';
       return;
     }
     tbody.innerHTML = data
@@ -561,7 +571,6 @@
         (c) => `<tr>
           <td>${escapeHtml(c.nome)}</td>
           <td>${formatCPF(c.cpf)}</td>
-          <td>${escapeHtml(c.cargo || "—")}</td>
           <td>${escapeHtml(c.predio?.nome || "—")}</td>
           <td><span class="badge ${c.ativo ? "badge-green" : "badge-grey"}">${c.ativo ? "Ativo" : "Inativo"}</span></td>
           <td class="actions-cell">
@@ -583,6 +592,49 @@
     faltaSel.innerHTML = opts || '<option value="">Nenhum colaborador cadastrado</option>';
   }
 
+  function resetFormNovoColaborador() {
+    $("form-novo-colaborador").reset();
+    $("nc-step-senha").hidden = true;
+    $("nc-step-dados").hidden = false;
+    $("novo-colaborador-msg-1").textContent = "";
+    $("novo-colaborador-msg-1").className = "msg";
+    $("novo-colaborador-msg").textContent = "";
+    $("novo-colaborador-msg").className = "msg";
+  }
+
+  function onNcContinuar() {
+    const msg = $("novo-colaborador-msg-1");
+    msg.className = "msg";
+    const nome = $("nc-nome").value.trim();
+    const cpf = onlyDigits($("nc-cpf").value);
+    const predio_id = $("nc-predio").value;
+
+    if (!nome) {
+      msg.textContent = "Informe o nome do colaborador.";
+      msg.className = "msg msg-error";
+      return;
+    }
+    if (!isValidCPF(cpf)) {
+      msg.textContent = "CPF inválido. Confira os números digitados.";
+      msg.className = "msg msg-error";
+      return;
+    }
+    if (!predio_id) {
+      msg.textContent = "Selecione o prédio em que o colaborador trabalha.";
+      msg.className = "msg msg-error";
+      return;
+    }
+    msg.textContent = "";
+    $("nc-step-dados").hidden = true;
+    $("nc-step-senha").hidden = false;
+    $("nc-senha").focus();
+  }
+
+  function onNcVoltar() {
+    $("nc-step-senha").hidden = true;
+    $("nc-step-dados").hidden = false;
+  }
+
   async function onNovoColaborador(e) {
     e.preventDefault();
     const msg = $("novo-colaborador-msg");
@@ -590,21 +642,28 @@
     msg.textContent = "";
     const nome = $("nc-nome").value.trim();
     const cpf = onlyDigits($("nc-cpf").value);
-    const cargo = $("nc-cargo").value.trim();
-    const predio_id = $("nc-predio").value || null;
+    const predio_id = $("nc-predio").value;
+    const senha = $("nc-senha").value;
+    const senhaConfirmar = $("nc-senha-confirmar").value;
 
-    if (!isValidCPF(cpf)) {
-      msg.textContent = "CPF inválido. Confira os números digitados.";
+    if (senha.length < 6) {
+      msg.textContent = "A senha inicial precisa ter pelo menos 6 caracteres.";
+      msg.className = "msg msg-error";
+      return;
+    }
+    if (senha !== senhaConfirmar) {
+      msg.textContent = "As senhas não conferem.";
       msg.className = "msg msg-error";
       return;
     }
 
     $("btn-novo-colaborador").disabled = true;
     try {
-      const data = await invokeFn("ponto-criar-colaborador", { nome, cpf, cargo, predio_id });
-      msg.textContent = `Colaborador cadastrado! Login: CPF (${formatCPF(cpf)}) · Senha inicial: ${data.senha_inicial}. Informe isso ao colaborador — ele deverá trocar a senha no primeiro acesso.`;
-      msg.className = "msg msg-ok";
-      $("form-novo-colaborador").reset();
+      await invokeFn("ponto-criar-colaborador", { nome, cpf, predio_id, senha });
+      resetFormNovoColaborador();
+      const finalMsg = $("novo-colaborador-msg-1");
+      finalMsg.textContent = `Colaborador "${nome}" cadastrado com sucesso! Login: CPF (${formatCPF(cpf)}).`;
+      finalMsg.className = "msg msg-ok";
       await carregarColaboradores();
       popularSelectsColaboradores();
     } catch (err) {
@@ -704,6 +763,7 @@
       state.lastReport = {
         mode: "detail",
         filename: `ponto_${colab ? colab.nome.replace(/\s+/g, "_") : "colaborador"}_${inicio}_a_${fim}.xlsx`,
+        titulo: `Colaborador: ${colab ? colab.nome : "—"} · Período: ${fmtDateBR(inicio)} a ${fmtDateBR(fim)}`,
         headers: ["Data", "Registros", "Horas", "Situação"],
         rows: rows.map((r) => ({
           Data: r.dataBR,
@@ -770,7 +830,8 @@
       state.lastReport = {
         mode: "summary",
         filename: `ponto_resumo_${inicio}_a_${fim}.xlsx`,
-        headers: null,
+        titulo: `Resumo de todos os colaboradores · Período: ${fmtDateBR(inicio)} a ${fmtDateBR(fim)}`,
+        headers: ["Colaborador", "CPF", "Total de horas", "Dias com registro", "Faltas", "Faltas justificadas", "Sem registro", "Pendentes (sem saída)"],
         rows: rows.map((r) => ({
           Colaborador: r.nome,
           CPF: r.cpf,
@@ -794,6 +855,96 @@
     const wb = window.XLSX.utils.book_new();
     window.XLSX.utils.book_append_sheet(wb, ws, "Relatório");
     window.XLSX.writeFile(wb, state.lastReport.filename);
+  }
+
+  function onExportarRelatorioPDF() {
+    if (!state.lastReport || !state.lastReport.rows.length) {
+      alert("Gere o relatório antes de exportar.");
+      return;
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: "landscape" });
+    const terracota = [117, 43, 31]; // #752B1F
+
+    doc.setFontSize(16);
+    doc.setTextColor(...terracota);
+    doc.text("JFL | Relatório de Ponto", 14, 16);
+    doc.setFontSize(10);
+    doc.setTextColor(60, 60, 60);
+    doc.text(state.lastReport.titulo || "", 14, 23);
+
+    const headers = state.lastReport.headers || Object.keys(state.lastReport.rows[0]);
+    const body = state.lastReport.rows.map((r) => headers.map((h) => String(r[h] ?? "")));
+
+    doc.autoTable({
+      startY: 28,
+      head: [headers],
+      body,
+      headStyles: { fillColor: terracota, textColor: 255 },
+      styles: { fontSize: 9 },
+      theme: "grid",
+    });
+    doc.save(state.lastReport.filename.replace(/\.xlsx$/, ".pdf"));
+  }
+
+  // ── Admin: presença por prédio ────────────────────────────
+  async function onBuscarPresenca() {
+    const predioId = $("pres-predio").value;
+    const data = $("pres-data").value;
+    const tbody = $("tbody-presenca");
+    if (!predioId || !data) {
+      tbody.innerHTML = '<tr><td colspan="4" class="table-empty">Escolha o prédio e a data.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = '<tr><td colspan="4" class="table-empty">Buscando…</td></tr>';
+
+    const colabsDoPredio = state.colaboradoresCache.filter((c) => c.predio_id === predioId && c.ativo);
+    if (!colabsDoPredio.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="table-empty">Nenhum colaborador ativo cadastrado nesse prédio.</td></tr>';
+      return;
+    }
+    const ids = colabsDoPredio.map((c) => c.id);
+    const { startISO, endISO } = boundsISO(data, data);
+
+    const [{ data: registros, error: e1 }, { data: faltas, error: e2 }] = await Promise.all([
+      sb
+        .from("ponto_registros")
+        .select("colaborador_id, tipo, registrado_em, lat, lng")
+        .in("colaborador_id", ids)
+        .gte("registrado_em", startISO)
+        .lte("registrado_em", endISO)
+        .order("registrado_em", { ascending: true }),
+      sb.from("ponto_faltas").select("colaborador_id, motivo, justificada").in("colaborador_id", ids).eq("data", data),
+    ]);
+    if (e1 || e2) {
+      tbody.innerHTML = '<tr><td colspan="4" class="table-empty">Não foi possível buscar a presença.</td></tr>';
+      return;
+    }
+
+    const faltaByColab = {};
+    (faltas || []).forEach((f) => (faltaByColab[f.colaborador_id] = f));
+
+    const rows = colabsDoPredio
+      .map((c) => {
+        const regsC = (registros || []).filter((r) => r.colaborador_id === c.id);
+        const byDay = buildRegistrosByDay(regsC);
+        const faltasByDate = {};
+        if (faltaByColab[c.id]) faltasByDate[data] = faltaByColab[c.id];
+        const [row] = buildDailyRows(data, data, byDay, faltasByDate);
+        return { nome: c.nome, row };
+      })
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+
+    tbody.innerHTML = rows
+      .map(
+        ({ nome, row }) => `<tr>
+          <td>${escapeHtml(nome)}</td>
+          <td>${row.registrosHtml}</td>
+          <td>${row.horas ? fmtHoras(row.horas) : "—"}</td>
+          <td><span class="badge ${row.badgeClass}">${escapeHtml(row.situacao)}</span></td>
+        </tr>`
+      )
+      .join("");
   }
 
   // ── Admin: faltas ─────────────────────────────────────────
@@ -891,9 +1042,13 @@
     $("btn-cancelar-senha").addEventListener("click", fecharModalSenha);
     $("form-trocar-senha").addEventListener("submit", onTrocarSenha);
     $("form-novo-colaborador").addEventListener("submit", onNovoColaborador);
+    $("btn-nc-continuar").addEventListener("click", onNcContinuar);
+    $("btn-nc-voltar").addEventListener("click", onNcVoltar);
     $("tbody-colaboradores").addEventListener("click", onClickColaboradoresTable);
     $("btn-gerar-relatorio").addEventListener("click", onGerarRelatorio);
     $("btn-exportar-relatorio").addEventListener("click", onExportarRelatorio);
+    $("btn-exportar-relatorio-pdf").addEventListener("click", onExportarRelatorioPDF);
+    $("btn-buscar-presenca").addEventListener("click", onBuscarPresenca);
     $("form-falta").addEventListener("submit", onRegistrarFalta);
     $("tbody-faltas").addEventListener("click", onClickFaltasTable);
     document.querySelectorAll(".tab-btn").forEach((b) => b.addEventListener("click", onClickTab));
