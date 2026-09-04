@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Ponto | JFL</title>
+<title>Check-in/out | JFL</title>
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -17,7 +17,7 @@
     <div class="login-logo">
       <svg viewBox="0 0 1152 919.3" xmlns="http://www.w3.org/2000/svg"><polygon fill="#752b1f" points="899.5 688.1 899.5 12.4 783.1 12.4 783.1 722.8 1141.8 722.8 1141.8 688.1 899.5 688.1"/><polygon fill="#752b1f" points="367.5 722.8 484.7 722.8 484.7 241 607.4 241 607.4 206.3 484.7 206.3 484.7 47.2 726.4 47.2 726.4 12.4 367.5 12.4 367.5 722.8"/><path fill="#752b1f" d="M209.1,12.4H20.7v34.7h121.5v553.2c0,228.4-30.4,261.4-132,284l3.5,22.6c139-24.3,245.8-85.1,245.8-308.3V12.4h-50.4Z"/></svg>
     </div>
-    <p class="login-eyebrow">JFL | Controle de Ponto</p>
+    <p class="login-eyebrow">JFL | Controle de Check-in/out</p>
     <h1>Entrar</h1>
     <form id="form-login">
       <div class="field">
@@ -42,7 +42,7 @@
   <header class="topbar">
     <div class="topbar-brand">
       <svg viewBox="0 0 1152 919.3" xmlns="http://www.w3.org/2000/svg"><polygon fill="#d8d5d2" points="899.5 688.1 899.5 12.4 783.1 12.4 783.1 722.8 1141.8 722.8 1141.8 688.1 899.5 688.1"/><polygon fill="#d8d5d2" points="367.5 722.8 484.7 722.8 484.7 241 607.4 241 607.4 206.3 484.7 206.3 484.7 47.2 726.4 47.2 726.4 12.4 367.5 12.4 367.5 722.8"/><path fill="#d8d5d2" d="M209.1,12.4H20.7v34.7h121.5v553.2c0,228.4-30.4,261.4-132,284l3.5,22.6c139-24.3,245.8-85.1,245.8-308.3V12.4h-50.4Z"/></svg>
-      <span class="topbar-title">JFL <span class="sep">|</span> Ponto</span>
+      <span class="topbar-title">JFL <span class="sep">|</span> Check-in/out</span>
     </div>
     <div class="topbar-user">
       <span class="nome" id="topbar-nome"></span>
@@ -53,11 +53,11 @@
   <main>
     <!-- ---------- VISÃO COLABORADOR ---------- -->
     <section id="view-colaborador" hidden>
-      <h2 class="section-title">Bater ponto</h2>
+      <h2 class="section-title">Check-in/out</h2>
 
       <div class="card">
         <div class="status-box" id="status-hoje">Carregando status de hoje…</div>
-        <button class="btn punch-btn" id="btn-bater-ponto" disabled>Registrar ponto</button>
+        <button class="btn punch-btn" id="btn-bater-ponto" disabled>Registrar check-in/out</button>
         <p class="msg" id="punch-msg"></p>
       </div>
 
