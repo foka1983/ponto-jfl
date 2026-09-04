@@ -32,7 +32,7 @@
       <p class="msg msg-error" id="login-msg" hidden></p>
     </form>
     <p class="card-subtitle" style="margin-top:20px;text-align:center;">
-      Primeiro acesso? A senha inicial é o seu CPF (somente números).
+      Esqueceu a senha? Fale com o RH para redefinir.
     </p>
   </div>
 </div>
@@ -83,6 +83,7 @@
       <div class="tabs">
         <button class="tab-btn active" data-tab="tab-colaboradores">Colaboradores</button>
         <button class="tab-btn" data-tab="tab-relatorio">Relatório de horas</button>
+        <button class="tab-btn" data-tab="tab-presenca">Presença por prédio</button>
         <button class="tab-btn" data-tab="tab-faltas">Faltas</button>
       </div>
 
@@ -91,14 +92,30 @@
         <div class="card">
           <p class="card-title">Cadastrar colaborador</p>
           <form id="form-novo-colaborador">
-            <div class="field-row">
-              <div class="field"><label for="nc-nome">Nome completo</label><input id="nc-nome" type="text" required /></div>
-              <div class="field"><label for="nc-cpf">CPF</label><input id="nc-cpf" type="text" placeholder="000.000.000-00" required /></div>
-              <div class="field"><label for="nc-cargo">Cargo (opcional)</label><input id="nc-cargo" type="text" /></div>
-              <div class="field"><label for="nc-predio">Prédio</label><select id="nc-predio"><option value="">Selecione…</option></select></div>
+            <!-- Etapa 1: dados -->
+            <div id="nc-step-dados">
+              <div class="field-row">
+                <div class="field"><label for="nc-nome">Nome completo</label><input id="nc-nome" type="text" required /></div>
+                <div class="field"><label for="nc-cpf">CPF</label><input id="nc-cpf" type="text" placeholder="000.000.000-00" required /></div>
+                <div class="field">
+                  <label for="nc-predio">Prédio que trabalha</label>
+                  <select id="nc-predio" required><option value="">Selecione…</option></select>
+                </div>
+              </div>
+              <button type="button" class="btn" id="btn-nc-continuar">Continuar</button>
+              <p class="msg" id="novo-colaborador-msg-1"></p>
             </div>
-            <button type="submit" class="btn" id="btn-novo-colaborador">Cadastrar</button>
-            <p class="msg" id="novo-colaborador-msg"></p>
+            <!-- Etapa 2: senha -->
+            <div id="nc-step-senha" hidden>
+              <p class="card-subtitle" style="margin-top:0;">Defina a senha inicial de acesso do colaborador.</p>
+              <div class="field-row">
+                <div class="field"><label for="nc-senha">Senha inicial (mín. 6 caracteres)</label><input id="nc-senha" type="password" minlength="6" required /></div>
+                <div class="field"><label for="nc-senha-confirmar">Confirmar senha</label><input id="nc-senha-confirmar" type="password" minlength="6" required /></div>
+              </div>
+              <button type="button" class="btn btn-secondary" id="btn-nc-voltar">Voltar</button>
+              <button type="submit" class="btn" id="btn-novo-colaborador">Cadastrar</button>
+              <p class="msg" id="novo-colaborador-msg"></p>
+            </div>
           </form>
         </div>
 
@@ -106,8 +123,8 @@
           <p class="card-title">Colaboradores cadastrados</p>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Nome</th><th>CPF</th><th>Cargo</th><th>Prédio</th><th>Status</th><th>Ações</th></tr></thead>
-              <tbody id="tbody-colaboradores"><tr><td colspan="6" class="table-empty">Carregando…</td></tr></tbody>
+              <thead><tr><th>Nome</th><th>CPF</th><th>Prédio</th><th>Status</th><th>Ações</th></tr></thead>
+              <tbody id="tbody-colaboradores"><tr><td colspan="5" class="table-empty">Carregando…</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -131,6 +148,7 @@
             </div>
             <button class="btn" id="btn-gerar-relatorio">Gerar relatório</button>
             <button class="btn btn-secondary" id="btn-exportar-relatorio">Exportar Excel</button>
+            <button class="btn btn-secondary" id="btn-exportar-relatorio-pdf">Exportar PDF</button>
           </div>
           <p class="card-subtitle" id="rel-predio-info" style="margin-top:0;"></p>
           <div class="table-wrap">
@@ -142,6 +160,33 @@
           <p class="card-subtitle" style="margin-top:16px;">
             Considera dias úteis (segunda a sexta) para indicar "sem registro". Sábados e domingos não são cobrados automaticamente.
             No relatório de um colaborador específico, clique no ícone 📍 ao lado do horário para ver a localização daquela batida no mapa (ícone apagado = localização não capturada). O endereço do prédio do colaborador aparece acima da tabela, para comparar com o pino do mapa.
+            Dias com mais de uma entrada/saída mostram o selo "Múltiplos registros" — geralmente indica que o colaborador bateu errado e corrigiu batendo de novo.
+          </p>
+        </div>
+      </div>
+
+      <!-- Presença por prédio -->
+      <div id="tab-presenca" class="tab-pane" hidden>
+        <div class="card">
+          <div class="toolbar">
+            <div class="field">
+              <label for="pres-predio">Prédio</label>
+              <select id="pres-predio" required><option value="">Selecione…</option></select>
+            </div>
+            <div class="field">
+              <label for="pres-data">Data</label>
+              <input id="pres-data" type="date" />
+            </div>
+            <button class="btn" id="btn-buscar-presenca">Buscar</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Colaborador</th><th>Registros</th><th>Horas</th><th>Situação</th></tr></thead>
+              <tbody id="tbody-presenca"><tr><td colspan="4" class="table-empty">Escolha o prédio e a data.</td></tr></tbody>
+            </table>
+          </div>
+          <p class="card-subtitle" style="margin-top:16px;">
+            Mostra a entrada e saída de todos os colaboradores ativos daquele prédio, no dia escolhido — para conferir rapidamente quem chegou e a que horas cada um saiu.
           </p>
         </div>
       </div>
@@ -209,6 +254,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="config.js"></script>
 <script src="app.js"></script>
 </body>
