@@ -191,25 +191,55 @@
     return map;
   }
 
+  // Carga horária esperada por dia (PJ, escala 6x1 — 06h às 14h). Um dia só
+  // deixa de "pesar" no banco de horas quando o admin marca folga (ou falta
+  // justificada) manualmente na aba Faltas/Folgas — não há folga automática
+  // por fim de semana, pois a escala não segue o calendário civil.
+  const CARGA_HORARIA_ESPERADA = 8;
+
   function buildDailyRows(inicioKey, fimKey, registrosByDay, faltasByDate) {
     const rows = [];
     const todayKey = todayKeySP();
     let key = inicioKey;
     let guard = 0;
-    while (key <= fimKey && guard < 2000) {
+    while (key <= fimKey && guard < 5000) {
       guard++;
       const dow = weekdayOf(key);
       const isWeekend = dow === 0 || dow === 6;
+      const isFuture = key > todayKey;
       const falta = faltasByDate[key];
       const reg = registrosByDay[key];
-      let situacao, badgeClass, registrosTexto, registrosHtml, horas;
+      let situacao, badgeClass, registrosTexto, registrosHtml, horas, esperado;
 
-      if (falta) {
+      if (falta && falta.tipo === "folga") {
+        esperado = 0;
+        if (reg) {
+          registrosTexto = reg.pares.length
+            ? reg.pares.map((p) => `${p.entradaTxt} → ${p.saidaTxt}`).join(", ")
+            : "—";
+          registrosHtml = reg.pares.length
+            ? reg.pares
+                .map((p) => `${p.entradaTxt}${pinHtml(p.entradaLoc)} → ${p.saidaTxt}${pinHtml(p.saidaLoc)}`)
+                .join(", ")
+            : "—";
+          horas = reg.totalHoras;
+          situacao = "Folga (trabalhada)";
+          badgeClass = "badge-yellow";
+        } else {
+          registrosTexto = falta.motivo ? falta.motivo : "—";
+          registrosHtml = escapeHtml(registrosTexto);
+          horas = 0;
+          situacao = "Folga";
+          badgeClass = "badge-grey";
+        }
+      } else if (falta) {
+        // tipo === "falta"
         situacao = falta.justificada ? "Falta justificada" : "Falta";
         badgeClass = falta.justificada ? "badge-grey" : "badge-red";
         registrosTexto = falta.motivo ? falta.motivo : "—";
         registrosHtml = escapeHtml(registrosTexto);
         horas = 0;
+        esperado = falta.justificada ? 0 : CARGA_HORARIA_ESPERADA;
       } else if (reg) {
         registrosTexto = reg.pares.length
           ? reg.pares.map((p) => `${p.entradaTxt} → ${p.saidaTxt}`).join(", ")
@@ -231,30 +261,66 @@
           badgeClass = "badge-green";
         }
         horas = reg.totalHoras;
+        esperado = CARGA_HORARIA_ESPERADA;
         // Mais de um par entrada/saída no mesmo dia geralmente indica uma
         // correção manual (colaborador bateu errado e bateu de novo).
         const totalPares = reg.pares.length + (reg.aberto ? 1 : 0);
         if (totalPares > 1) {
           registrosHtml += ` <span class="badge badge-grey" title="Mais de uma entrada/saída neste dia — pode indicar uma correção manual">Múltiplos registros</span>`;
         }
+      } else if (isFuture) {
+        situacao = "—";
+        badgeClass = "badge-grey";
+        registrosTexto = "—";
+        registrosHtml = "—";
+        horas = 0;
+        esperado = 0;
       } else if (isWeekend) {
         situacao = "—";
         badgeClass = "badge-grey";
         registrosTexto = "—";
         registrosHtml = "—";
         horas = 0;
+        esperado = CARGA_HORARIA_ESPERADA;
       } else {
         situacao = "Sem registro";
         badgeClass = "badge-yellow";
         registrosTexto = "—";
         registrosHtml = "—";
         horas = 0;
+        esperado = CARGA_HORARIA_ESPERADA;
       }
 
-      rows.push({ key, dataBR: fmtDateBR(key), registrosTexto, registrosHtml, horas, situacao, badgeClass });
+      if (isFuture) esperado = 0;
+
+      rows.push({ key, dataBR: fmtDateBR(key), registrosTexto, registrosHtml, horas, situacao, badgeClass, esperado });
       key = addDaysKey(key, 1);
     }
     return rows;
+  }
+
+  // Acrescenta a cada linha o saldo de horas acumulado (banco de horas) até
+  // aquele dia — soma corrida de (horas trabalhadas − horas esperadas) desde
+  // a primeira linha do array recebido (que deve começar na admissão).
+  function attachSaldoAcumulado(rows) {
+    let acumulado = 0;
+    return rows.map((r) => {
+      acumulado += (r.horas || 0) - r.esperado;
+      return { ...r, saldoAcumulado: acumulado };
+    });
+  }
+
+  // Formata o saldo de horas com sinal — negativo com "-" (vermelho),
+  // positivo com "+" (azul), zero neutro.
+  function fmtSaldo(h) {
+    if (h < -0.0001) return "-" + fmtHoras(Math.abs(h));
+    if (h > 0.0001) return "+" + fmtHoras(h);
+    return "0h00";
+  }
+  function classeSaldo(h) {
+    if (h < -0.0001) return "saldo-negativo";
+    if (h > 0.0001) return "saldo-positivo";
+    return "saldo-neutro";
   }
 
   // ── Login ─────────────────────────────────────────────────
@@ -363,7 +429,7 @@
     if (!data.length) {
       box.innerHTML = "Nenhum registro hoje ainda.";
       state.proximoTipoHoje = "entrada";
-      btn.textContent = "Bater entrada";
+      btn.textContent = "Registrar ponto";
     } else {
       const ultimo = data[data.length - 1];
       const partes = data
@@ -371,7 +437,7 @@
         .join(" · ");
       box.innerHTML = `<strong>Hoje:</strong> ${partes}`;
       state.proximoTipoHoje = ultimo.tipo === "entrada" ? "saida" : "entrada";
-      btn.textContent = state.proximoTipoHoje === "entrada" ? "Bater entrada" : "Bater saída";
+      btn.textContent = "Registrar ponto";
     }
     btn.disabled = false;
   }
@@ -424,7 +490,7 @@
         .order("registrado_em", { ascending: true }),
       sb
         .from("ponto_faltas")
-        .select("data, motivo, justificada")
+        .select("data, motivo, justificada, tipo")
         .eq("colaborador_id", state.user.id)
         .gte("data", inicioKey)
         .lte("data", fimKey),
@@ -716,7 +782,6 @@
       return;
     }
     tbody.innerHTML = '<tr><td class="table-empty">Gerando…</td></tr>';
-    const { startISO, endISO } = boundsISO(inicio, fim);
 
     if (colabId) {
       const colab = state.colaboradoresCache.find((c) => c.id === colabId);
@@ -726,6 +791,11 @@
           ? `Prédio: ${colab.predio.nome}${colab.predio.endereco ? " — " + colab.predio.endereco : " (endereço não cadastrado)"}`
           : "Prédio: não informado no cadastro deste colaborador.";
       }
+      // Busca desde a admissão (não só o período do relatório) para poder
+      // calcular o banco de horas acumulado corretamente.
+      const admissaoKey = colab ? dateKeySP(colab.created_at) : inicio;
+      const { startISO } = boundsISO(admissaoKey, admissaoKey);
+      const { endISO } = boundsISO(fim, fim);
       const [{ data: registros, error: e1 }, { data: faltas, error: e2 }] = await Promise.all([
         sb
           .from("ponto_registros")
@@ -734,7 +804,7 @@
           .gte("registrado_em", startISO)
           .lte("registrado_em", endISO)
           .order("registrado_em", { ascending: true }),
-        sb.from("ponto_faltas").select("data, motivo, justificada").eq("colaborador_id", colabId).gte("data", inicio).lte("data", fim),
+        sb.from("ponto_faltas").select("data, motivo, justificada, tipo").eq("colaborador_id", colabId).gte("data", admissaoKey).lte("data", fim),
       ]);
       if (e1 || e2) {
         tbody.innerHTML = '<tr><td class="table-empty">Não foi possível gerar o relatório.</td></tr>';
@@ -743,10 +813,12 @@
       const byDay = buildRegistrosByDay(registros || []);
       const faltasByDate = {};
       (faltas || []).forEach((f) => (faltasByDate[f.data] = f));
-      const rows = buildDailyRows(inicio, fim, byDay, faltasByDate);
+      const fullRows = attachSaldoAcumulado(buildDailyRows(admissaoKey, fim, byDay, faltasByDate));
+      const rows = fullRows.filter((r) => r.key >= inicio);
       const totalHoras = rows.reduce((s, r) => s + (typeof r.horas === "number" ? r.horas : 0), 0);
+      const saldoFinal = fullRows.length ? fullRows[fullRows.length - 1].saldoAcumulado : 0;
 
-      thead.innerHTML = "<tr><th>Data</th><th>Registros</th><th>Horas</th><th>Situação</th></tr>";
+      thead.innerHTML = "<tr><th>Data</th><th>Registros</th><th>Horas</th><th>Saldo de horas</th><th>Situação</th></tr>";
       tbody.innerHTML =
         rows
           .map(
@@ -754,35 +826,37 @@
               <td>${r.dataBR}</td>
               <td>${r.registrosHtml}</td>
               <td>${r.horas ? fmtHoras(r.horas) : "—"}</td>
+              <td class="${classeSaldo(r.saldoAcumulado)}">${fmtSaldo(r.saldoAcumulado)}</td>
               <td><span class="badge ${r.badgeClass}">${escapeHtml(r.situacao)}</span></td>
             </tr>`
           )
           .join("") +
-        `<tr><td colspan="2"><strong>Total do período</strong></td><td><strong>${fmtHoras(totalHoras)}</strong></td><td></td></tr>`;
+        `<tr><td colspan="2"><strong>Total do período</strong></td><td><strong>${fmtHoras(totalHoras)}</strong></td><td class="${classeSaldo(saldoFinal)}"><strong>${fmtSaldo(saldoFinal)}</strong></td><td></td></tr>`;
 
       state.lastReport = {
         mode: "detail",
         filename: `ponto_${colab ? colab.nome.replace(/\s+/g, "_") : "colaborador"}_${inicio}_a_${fim}.xlsx`,
         titulo: `Colaborador: ${colab ? colab.nome : "—"} · Período: ${fmtDateBR(inicio)} a ${fmtDateBR(fim)}`,
-        headers: ["Data", "Registros", "Horas", "Situação"],
+        headers: ["Data", "Registros", "Horas", "Saldo de horas", "Situação"],
         rows: rows.map((r) => ({
           Data: r.dataBR,
           Registros: r.registrosTexto,
           Horas: r.horas ? fmtHoras(r.horas) : "",
+          "Saldo de horas": fmtSaldo(r.saldoAcumulado),
           "Situação": r.situacao,
         })),
       };
     } else {
       const predioInfo = $("rel-predio-info");
       if (predioInfo) predioInfo.textContent = "";
+      const { endISO } = boundsISO(fim, fim);
       const [{ data: registros, error: e1 }, { data: faltas, error: e2 }] = await Promise.all([
         sb
           .from("ponto_registros")
           .select("colaborador_id, tipo, registrado_em")
-          .gte("registrado_em", startISO)
           .lte("registrado_em", endISO)
           .order("registrado_em", { ascending: true }),
-        sb.from("ponto_faltas").select("colaborador_id, data, motivo, justificada").gte("data", inicio).lte("data", fim),
+        sb.from("ponto_faltas").select("colaborador_id, data, motivo, justificada, tipo").lte("data", fim),
       ]);
       if (e1 || e2) {
         tbody.innerHTML = '<tr><td class="table-empty">Não foi possível gerar o relatório.</td></tr>';
@@ -794,12 +868,16 @@
         const byDay = buildRegistrosByDay(regsC);
         const faltasByDate = {};
         faltasC.forEach((f) => (faltasByDate[f.data] = f));
-        const daily = buildDailyRows(inicio, fim, byDay, faltasByDate);
+        const admissaoKey = dateKeySP(c.created_at);
+        const fullDaily = attachSaldoAcumulado(buildDailyRows(admissaoKey, fim, byDay, faltasByDate));
+        const daily = fullDaily.filter((d) => d.key >= inicio);
         const totalHoras = daily.reduce((s, d) => s + (typeof d.horas === "number" ? d.horas : 0), 0);
+        const saldoAcumulado = fullDaily.length ? fullDaily[fullDaily.length - 1].saldoAcumulado : 0;
         return {
           nome: c.nome,
           cpf: formatCPF(c.cpf),
           totalHoras,
+          saldoAcumulado,
           diasTrabalhados: daily.filter((d) => d.situacao === "OK").length,
           faltas: daily.filter((d) => d.situacao === "Falta").length,
           faltasJustificadas: daily.filter((d) => d.situacao === "Falta justificada").length,
@@ -809,7 +887,7 @@
       });
 
       thead.innerHTML =
-        "<tr><th>Colaborador</th><th>CPF</th><th>Total de horas</th><th>Dias c/ registro</th><th>Faltas</th><th>Faltas justif.</th><th>Sem registro</th><th>Pendentes</th></tr>";
+        "<tr><th>Colaborador</th><th>CPF</th><th>Total de horas</th><th>Saldo de horas</th><th>Dias c/ registro</th><th>Faltas</th><th>Faltas justif.</th><th>Sem registro</th><th>Pendentes</th></tr>";
       tbody.innerHTML = rows.length
         ? rows
             .map(
@@ -817,6 +895,7 @@
                 <td>${escapeHtml(r.nome)}</td>
                 <td>${r.cpf}</td>
                 <td>${fmtHoras(r.totalHoras)}</td>
+                <td class="${classeSaldo(r.saldoAcumulado)}">${fmtSaldo(r.saldoAcumulado)}</td>
                 <td>${r.diasTrabalhados}</td>
                 <td>${r.faltas ? `<span class="badge badge-red">${r.faltas}</span>` : "0"}</td>
                 <td>${r.faltasJustificadas || 0}</td>
@@ -825,17 +904,18 @@
               </tr>`
             )
             .join("")
-        : '<tr><td colspan="8" class="table-empty">Nenhum colaborador cadastrado.</td></tr>';
+        : '<tr><td colspan="9" class="table-empty">Nenhum colaborador cadastrado.</td></tr>';
 
       state.lastReport = {
         mode: "summary",
         filename: `ponto_resumo_${inicio}_a_${fim}.xlsx`,
         titulo: `Resumo de todos os colaboradores · Período: ${fmtDateBR(inicio)} a ${fmtDateBR(fim)}`,
-        headers: ["Colaborador", "CPF", "Total de horas", "Dias com registro", "Faltas", "Faltas justificadas", "Sem registro", "Pendentes (sem saída)"],
+        headers: ["Colaborador", "CPF", "Total de horas", "Saldo de horas", "Dias com registro", "Faltas", "Faltas justificadas", "Sem registro", "Pendentes (sem saída)"],
         rows: rows.map((r) => ({
           Colaborador: r.nome,
           CPF: r.cpf,
           "Total de horas": fmtHoras(r.totalHoras),
+          "Saldo de horas": fmtSaldo(r.saldoAcumulado),
           "Dias com registro": r.diasTrabalhados,
           Faltas: r.faltas,
           "Faltas justificadas": r.faltasJustificadas,
@@ -914,7 +994,7 @@
         .gte("registrado_em", startISO)
         .lte("registrado_em", endISO)
         .order("registrado_em", { ascending: true }),
-      sb.from("ponto_faltas").select("colaborador_id, motivo, justificada").in("colaborador_id", ids).eq("data", data),
+      sb.from("ponto_faltas").select("colaborador_id, motivo, justificada, tipo").in("colaborador_id", ids).eq("data", data),
     ]);
     if (e1 || e2) {
       tbody.innerHTML = '<tr><td colspan="4" class="table-empty">Não foi possível buscar a presença.</td></tr>';
@@ -947,15 +1027,22 @@
       .join("");
   }
 
-  // ── Admin: faltas ─────────────────────────────────────────
+  // ── Admin: faltas / folgas ──────────────────────────────────
+  function onFaltaTipoChange() {
+    const isFolga = $("falta-tipo").value === "folga";
+    $("falta-justificada-wrap").hidden = isFolga;
+    $("falta-motivo-label").textContent = isFolga ? "Observação (opcional)" : "Motivo (opcional)";
+  }
+
   async function onRegistrarFalta(e) {
     e.preventDefault();
     const msg = $("falta-msg");
     msg.className = "msg";
     const colaborador_id = $("falta-colaborador").value;
     const data = $("falta-data").value;
+    const tipo = $("falta-tipo").value === "folga" ? "folga" : "falta";
     const motivo = $("falta-motivo").value.trim() || null;
-    const justificada = $("falta-justificada").checked;
+    const justificada = tipo === "folga" ? false : $("falta-justificada").checked;
 
     if (!colaborador_id) {
       msg.textContent = "Selecione um colaborador.";
@@ -967,6 +1054,7 @@
     const { error } = await sb.from("ponto_faltas").insert({
       colaborador_id,
       data,
+      tipo,
       motivo,
       justificada,
       criado_por: state.user.id,
@@ -974,44 +1062,47 @@
     $("btn-registrar-falta").disabled = false;
 
     if (error) {
-      msg.textContent = error.code === "23505" ? "Já existe uma falta registrada para esse colaborador nessa data." : friendly(error.message);
+      msg.textContent = error.code === "23505" ? "Já existe uma falta ou folga registrada para esse colaborador nessa data." : friendly(error.message);
       msg.className = "msg msg-error";
       return;
     }
-    msg.textContent = "Falta registrada.";
+    msg.textContent = tipo === "folga" ? "Folga registrada." : "Falta registrada.";
     msg.className = "msg msg-ok";
     $("form-falta").reset();
     $("falta-data").value = todayKeySP();
+    onFaltaTipoChange();
     await carregarFaltas();
   }
 
   async function carregarFaltas() {
     const { data, error } = await sb
       .from("ponto_faltas")
-      .select("id, colaborador_id, data, motivo, justificada")
+      .select("id, colaborador_id, data, motivo, justificada, tipo")
       .order("data", { ascending: false })
       .limit(300);
     const tbody = $("tbody-faltas");
     if (error) {
-      tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Não foi possível carregar as faltas.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Não foi possível carregar as faltas.</td></tr>';
       return;
     }
     if (!data.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Nenhuma falta registrada.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Nenhuma falta ou folga registrada.</td></tr>';
       return;
     }
     const nomeById = {};
     state.colaboradoresCache.forEach((c) => (nomeById[c.id] = c.nome));
     tbody.innerHTML = data
-      .map(
-        (f) => `<tr>
+      .map((f) => {
+        const isFolga = f.tipo === "folga";
+        return `<tr>
           <td>${escapeHtml(nomeById[f.colaborador_id] || "—")}</td>
           <td>${fmtDateBR(f.data)}</td>
+          <td><span class="badge ${isFolga ? "badge-grey" : "badge-yellow"}">${isFolga ? "Folga" : "Falta"}</span></td>
           <td>${escapeHtml(f.motivo || "—")}</td>
-          <td><span class="badge ${f.justificada ? "badge-grey" : "badge-red"}">${f.justificada ? "Justificada" : "Não justificada"}</span></td>
+          <td>${isFolga ? "—" : `<span class="badge ${f.justificada ? "badge-grey" : "badge-red"}">${f.justificada ? "Justificada" : "Não justificada"}</span>`}</td>
           <td><button class="btn btn-danger btn-small" data-action="del-falta" data-id="${f.id}">Remover</button></td>
-        </tr>`
-      )
+        </tr>`;
+      })
       .join("");
   }
 
@@ -1050,6 +1141,7 @@
     $("btn-exportar-relatorio-pdf").addEventListener("click", onExportarRelatorioPDF);
     $("btn-buscar-presenca").addEventListener("click", onBuscarPresenca);
     $("form-falta").addEventListener("submit", onRegistrarFalta);
+    $("falta-tipo").addEventListener("change", onFaltaTipoChange);
     $("tbody-faltas").addEventListener("click", onClickFaltasTable);
     document.querySelectorAll(".tab-btn").forEach((b) => b.addEventListener("click", onClickTab));
   }
