@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ponto | JFL</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- ═══════════════ LOADING ═══════════════ -->
+<div id="view-loading" class="loading-wrap">Carregando…</div>
+
+<!-- ═══════════════ LOGIN ═══════════════ -->
+<div id="view-login" class="login-wrap" hidden>
+  <div class="login-card">
+    <div class="login-logo">
+      <svg viewBox="0 0 1152 919.3" xmlns="http://www.w3.org/2000/svg"><polygon fill="#752b1f" points="899.5 688.1 899.5 12.4 783.1 12.4 783.1 722.8 1141.8 722.8 1141.8 688.1 899.5 688.1"/><polygon fill="#752b1f" points="367.5 722.8 484.7 722.8 484.7 241 607.4 241 607.4 206.3 484.7 206.3 484.7 47.2 726.4 47.2 726.4 12.4 367.5 12.4 367.5 722.8"/><path fill="#752b1f" d="M209.1,12.4H20.7v34.7h121.5v553.2c0,228.4-30.4,261.4-132,284l3.5,22.6c139-24.3,245.8-85.1,245.8-308.3V12.4h-50.4Z"/></svg>
+    </div>
+    <p class="login-eyebrow">JFL | Controle de Ponto</p>
+    <h1>Entrar</h1>
+    <form id="form-login">
+      <div class="field">
+        <label for="login-id">CPF (colaborador) ou e-mail (admin)</label>
+        <input id="login-id" type="text" autocomplete="username" placeholder="000.000.000-00" required />
+      </div>
+      <div class="field">
+        <label for="login-senha">Senha</label>
+        <input id="login-senha" type="password" autocomplete="current-password" required />
+      </div>
+      <button type="submit" class="btn btn-block" id="btn-login">Entrar</button>
+      <p class="msg msg-error" id="login-msg" hidden></p>
+    </form>
+    <p class="card-subtitle" style="margin-top:20px;text-align:center;">
+      Primeiro acesso? A senha inicial é o seu CPF (somente números).
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════ APP (colaborador / admin) ═══════════════ -->
+<div id="view-app" hidden>
+  <header class="topbar">
+    <div class="topbar-brand">
+      <svg viewBox="0 0 1152 919.3" xmlns="http://www.w3.org/2000/svg"><polygon fill="#d8d5d2" points="899.5 688.1 899.5 12.4 783.1 12.4 783.1 722.8 1141.8 722.8 1141.8 688.1 899.5 688.1"/><polygon fill="#d8d5d2" points="367.5 722.8 484.7 722.8 484.7 241 607.4 241 607.4 206.3 484.7 206.3 484.7 47.2 726.4 47.2 726.4 12.4 367.5 12.4 367.5 722.8"/><path fill="#d8d5d2" d="M209.1,12.4H20.7v34.7h121.5v553.2c0,228.4-30.4,261.4-132,284l3.5,22.6c139-24.3,245.8-85.1,245.8-308.3V12.4h-50.4Z"/></svg>
+      <span class="topbar-title">JFL <span class="sep">|</span> Ponto</span>
+    </div>
+    <div class="topbar-user">
+      <span class="nome" id="topbar-nome"></span>
+      <button class="btn btn-secondary btn-small" id="btn-sair">Sair</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ---------- VISÃO COLABORADOR ---------- -->
+    <section id="view-colaborador" hidden>
+      <h2 class="section-title">Bater ponto</h2>
+
+      <div class="card">
+        <div class="status-box" id="status-hoje">Carregando status de hoje…</div>
+        <button class="btn punch-btn" id="btn-bater-ponto" disabled>Bater ponto</button>
+        <p class="msg" id="punch-msg"></p>
+      </div>
+
+      <h2 class="section-title">Meus registros (últimos 30 dias)</h2>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Data</th><th>Registros</th><th>Horas</th><th>Situação</th></tr></thead>
+            <tbody id="tbody-meus-registros"><tr><td colspan="4" class="table-empty">Carregando…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <h2 class="section-title">Minha conta</h2>
+      <div class="card">
+        <p class="card-subtitle">Cargo: <span id="minha-conta-cargo">—</span></p>
+        <button class="btn btn-secondary" id="btn-abrir-trocar-senha">Trocar senha</button>
+      </div>
+    </section>
+
+    <!-- ---------- VISÃO ADMIN ---------- -->
+    <section id="view-admin" hidden>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="tab-colaboradores">Colaboradores</button>
+        <button class="tab-btn" data-tab="tab-relatorio">Relatório de horas</button>
+        <button class="tab-btn" data-tab="tab-faltas">Faltas</button>
+      </div>
+
+      <!-- Colaboradores -->
+      <div id="tab-colaboradores" class="tab-pane">
+        <div class="card">
+          <p class="card-title">Cadastrar colaborador</p>
+          <form id="form-novo-colaborador">
+            <div class="field-row">
+              <div class="field"><label for="nc-nome">Nome completo</label><input id="nc-nome" type="text" required /></div>
+              <div class="field"><label for="nc-cpf">CPF</label><input id="nc-cpf" type="text" placeholder="000.000.000-00" required /></div>
+              <div class="field"><label for="nc-cargo">Cargo (opcional)</label><input id="nc-cargo" type="text" /></div>
+              <div class="field"><label for="nc-predio">Prédio</label><select id="nc-predio"><option value="">Selecione…</option></select></div>
+            </div>
+            <button type="submit" class="btn" id="btn-novo-colaborador">Cadastrar</button>
+            <p class="msg" id="novo-colaborador-msg"></p>
+          </form>
+        </div>
+
+        <div class="card">
+          <p class="card-title">Colaboradores cadastrados</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Nome</th><th>CPF</th><th>Cargo</th><th>Prédio</th><th>Status</th><th>Ações</th></tr></thead>
+              <tbody id="tbody-colaboradores"><tr><td colspan="6" class="table-empty">Carregando…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Relatório -->
+      <div id="tab-relatorio" class="tab-pane" hidden>
+        <div class="card">
+          <div class="toolbar">
+            <div class="field">
+              <label for="rel-colaborador">Colaborador</label>
+              <select id="rel-colaborador"><option value="">Todos</option></select>
+            </div>
+            <div class="field">
+              <label for="rel-inicio">De</label>
+              <input id="rel-inicio" type="date" />
+            </div>
+            <div class="field">
+              <label for="rel-fim">Até</label>
+              <input id="rel-fim" type="date" />
+            </div>
+            <button class="btn" id="btn-gerar-relatorio">Gerar relatório</button>
+            <button class="btn btn-secondary" id="btn-exportar-relatorio">Exportar Excel</button>
+          </div>
+          <p class="card-subtitle" id="rel-predio-info" style="margin-top:0;"></p>
+          <div class="table-wrap">
+            <table>
+              <thead id="thead-relatorio"></thead>
+              <tbody id="tbody-relatorio"><tr><td class="table-empty">Escolha o período e clique em "Gerar relatório".</td></tr></tbody>
+            </table>
+          </div>
+          <p class="card-subtitle" style="margin-top:16px;">
+            Considera dias úteis (segunda a sexta) para indicar "sem registro". Sábados e domingos não são cobrados automaticamente.
+            No relatório de um colaborador específico, clique no ícone 📍 ao lado do horário para ver a localização daquela batida no mapa (ícone apagado = localização não capturada). O endereço do prédio do colaborador aparece acima da tabela, para comparar com o pino do mapa.
+          </p>
+        </div>
+      </div>
+
+      <!-- Faltas -->
+      <div id="tab-faltas" class="tab-pane" hidden>
+        <div class="card">
+          <p class="card-title">Registrar falta</p>
+          <form id="form-falta">
+            <div class="field-row">
+              <div class="field"><label for="falta-colaborador">Colaborador</label><select id="falta-colaborador" required></select></div>
+              <div class="field"><label for="falta-data">Data</label><input id="falta-data" type="date" required /></div>
+            </div>
+            <div class="field"><label for="falta-motivo">Motivo (opcional)</label><input id="falta-motivo" type="text" /></div>
+            <div class="field-checkbox">
+              <input id="falta-justificada" type="checkbox" />
+              <label for="falta-justificada">Falta justificada</label>
+            </div>
+            <button type="submit" class="btn" id="btn-registrar-falta">Registrar falta</button>
+            <p class="msg" id="falta-msg"></p>
+          </form>
+        </div>
+        <div class="card">
+          <p class="card-title">Faltas registradas</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Colaborador</th><th>Data</th><th>Motivo</th><th>Justificada</th><th>Ações</th></tr></thead>
+              <tbody id="tbody-faltas"><tr><td colspan="5" class="table-empty">Carregando…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <span>Powered by <a href="https://www.jfl.inc" target="_blank" rel="noopener">JFL</a></span>
+      <span class="footer-divider">|</span>
+      <span>Uso interno</span>
+    </div>
+  </footer>
+</div>
+
+<!-- ═══════════════ MODAL: trocar senha ═══════════════ -->
+<div id="modal-senha" class="modal-overlay" hidden>
+  <div class="modal-box">
+    <h2>Trocar senha</h2>
+    <p class="hint" id="modal-senha-hint">Escolha uma nova senha para acessar o sistema.</p>
+    <form id="form-trocar-senha">
+      <div class="field">
+        <label for="nova-senha">Nova senha (mín. 6 caracteres)</label>
+        <input id="nova-senha" type="password" minlength="6" required />
+      </div>
+      <div class="field">
+        <label for="confirmar-senha">Confirmar nova senha</label>
+        <input id="confirmar-senha" type="password" minlength="6" required />
+      </div>
+      <button type="submit" class="btn btn-block" id="btn-salvar-senha">Salvar nova senha</button>
+      <button type="button" class="btn btn-secondary btn-block" id="btn-cancelar-senha" style="margin-top:8px;">Cancelar</button>
+      <p class="msg" id="senha-msg"></p>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
