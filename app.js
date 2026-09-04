@@ -429,7 +429,7 @@
     if (!data.length) {
       box.innerHTML = "Nenhum registro hoje ainda.";
       state.proximoTipoHoje = "entrada";
-      btn.textContent = "Registrar ponto";
+      btn.textContent = "Registrar check-in/out";
     } else {
       const ultimo = data[data.length - 1];
       const partes = data
@@ -437,7 +437,7 @@
         .join(" · ");
       box.innerHTML = `<strong>Hoje:</strong> ${partes}`;
       state.proximoTipoHoje = ultimo.tipo === "entrada" ? "saida" : "entrada";
-      btn.textContent = "Registrar ponto";
+      btn.textContent = "Registrar check-in/out";
     }
     btn.disabled = false;
   }
@@ -835,7 +835,7 @@
 
       state.lastReport = {
         mode: "detail",
-        filename: `ponto_${colab ? colab.nome.replace(/\s+/g, "_") : "colaborador"}_${inicio}_a_${fim}.xlsx`,
+        filename: `checkinout_${colab ? colab.nome.replace(/\s+/g, "_") : "colaborador"}_${inicio}_a_${fim}.xlsx`,
         titulo: `Colaborador: ${colab ? colab.nome : "—"} · Período: ${fmtDateBR(inicio)} a ${fmtDateBR(fim)}`,
         headers: ["Data", "Registros", "Horas", "Saldo de horas", "Situação"],
         rows: rows.map((r) => ({
@@ -908,7 +908,7 @@
 
       state.lastReport = {
         mode: "summary",
-        filename: `ponto_resumo_${inicio}_a_${fim}.xlsx`,
+        filename: `checkinout_resumo_${inicio}_a_${fim}.xlsx`,
         titulo: `Resumo de todos os colaboradores · Período: ${fmtDateBR(inicio)} a ${fmtDateBR(fim)}`,
         headers: ["Colaborador", "CPF", "Total de horas", "Saldo de horas", "Dias com registro", "Faltas", "Faltas justificadas", "Sem registro", "Pendentes (sem saída)"],
         rows: rows.map((r) => ({
@@ -948,7 +948,7 @@
 
     doc.setFontSize(16);
     doc.setTextColor(...terracota);
-    doc.text("JFL | Relatório de Ponto", 14, 16);
+    doc.text("JFL | Relatório de Check-in/out", 14, 16);
     doc.setFontSize(10);
     doc.setTextColor(60, 60, 60);
     doc.text(state.lastReport.titulo || "", 14, 23);
