@@ -57,7 +57,7 @@
 
       <div class="card">
         <div class="status-box" id="status-hoje">Carregando status de hoje…</div>
-        <button class="btn punch-btn" id="btn-bater-ponto" disabled>Bater ponto</button>
+        <button class="btn punch-btn" id="btn-bater-ponto" disabled>Registrar ponto</button>
         <p class="msg" id="punch-msg"></p>
       </div>
 
@@ -158,9 +158,12 @@
             </table>
           </div>
           <p class="card-subtitle" style="margin-top:16px;">
-            Considera dias úteis (segunda a sexta) para indicar "sem registro". Sábados e domingos não são cobrados automaticamente.
+            Considera dias úteis (segunda a sexta) para indicar "sem registro" na coluna Situação. Sábados e domingos aparecem neutros nessa coluna quando não há registro.
             No relatório de um colaborador específico, clique no ícone 📍 ao lado do horário para ver a localização daquela batida no mapa (ícone apagado = localização não capturada). O endereço do prédio do colaborador aparece acima da tabela, para comparar com o pino do mapa.
             Dias com mais de uma entrada/saída mostram o selo "Múltiplos registros" — geralmente indica que o colaborador bateu errado e corrigiu batendo de novo.
+          </p>
+          <p class="card-subtitle" style="margin-top:8px;">
+            <strong>Saldo de horas:</strong> banco de horas acumulado desde a admissão do colaborador até a data escolhida — soma de (horas trabalhadas − 8h esperadas por dia). Todo dia conta 8h esperadas, inclusive fins de semana, a menos que esteja marcado como Folga ou Falta justificada na aba "Faltas". Saldo negativo aparece com "-" em vermelho; saldo positivo aparece com "+" em azul.
           </p>
         </div>
       </div>
@@ -191,30 +194,40 @@
         </div>
       </div>
 
-      <!-- Faltas -->
+      <!-- Faltas / Folgas -->
       <div id="tab-faltas" class="tab-pane" hidden>
         <div class="card">
-          <p class="card-title">Registrar falta</p>
+          <p class="card-title">Registrar falta ou folga</p>
+          <p class="card-subtitle" style="margin-top:0;">
+            Use "Folga" para marcar manualmente o dia de descanso da escala 6x1 de um colaborador — esse dia não conta como esperado no banco de horas. Se o colaborador trabalhar mesmo estando de folga (ex: vendeu a folga), as horas batidas somam a favor dele normalmente.
+          </p>
           <form id="form-falta">
             <div class="field-row">
               <div class="field"><label for="falta-colaborador">Colaborador</label><select id="falta-colaborador" required></select></div>
               <div class="field"><label for="falta-data">Data</label><input id="falta-data" type="date" required /></div>
+              <div class="field">
+                <label for="falta-tipo">Tipo</label>
+                <select id="falta-tipo">
+                  <option value="falta">Falta</option>
+                  <option value="folga">Folga (dia de descanso da escala)</option>
+                </select>
+              </div>
             </div>
-            <div class="field"><label for="falta-motivo">Motivo (opcional)</label><input id="falta-motivo" type="text" /></div>
-            <div class="field-checkbox">
+            <div class="field"><label for="falta-motivo" id="falta-motivo-label">Motivo (opcional)</label><input id="falta-motivo" type="text" /></div>
+            <div class="field-checkbox" id="falta-justificada-wrap">
               <input id="falta-justificada" type="checkbox" />
               <label for="falta-justificada">Falta justificada</label>
             </div>
-            <button type="submit" class="btn" id="btn-registrar-falta">Registrar falta</button>
+            <button type="submit" class="btn" id="btn-registrar-falta">Registrar</button>
             <p class="msg" id="falta-msg"></p>
           </form>
         </div>
         <div class="card">
-          <p class="card-title">Faltas registradas</p>
+          <p class="card-title">Faltas e folgas registradas</p>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Colaborador</th><th>Data</th><th>Motivo</th><th>Justificada</th><th>Ações</th></tr></thead>
-              <tbody id="tbody-faltas"><tr><td colspan="5" class="table-empty">Carregando…</td></tr></tbody>
+              <thead><tr><th>Colaborador</th><th>Data</th><th>Tipo</th><th>Motivo</th><th>Justificada</th><th>Ações</th></tr></thead>
+              <tbody id="tbody-faltas"><tr><td colspan="6" class="table-empty">Carregando…</td></tr></tbody>
             </table>
           </div>
         </div>
