@@ -352,7 +352,7 @@
 
     const { data: adminRow } = await sb
       .from("ponto_admins")
-      .select("user_id, nome")
+      .select("user_id, nome, must_change_password")
       .eq("user_id", state.user.id)
       .maybeSingle();
 
@@ -362,6 +362,7 @@
       showOnly("view-app");
       showAppSection("admin");
       await loadAdminData();
+      if (adminRow.must_change_password) abrirModalSenha(true);
       return;
     }
 
@@ -575,9 +576,9 @@
         msg.className = "msg msg-error";
         return;
       }
-      if (!state.isAdmin && state.colaborador) {
+      if (state.isAdmin || state.colaborador) {
         await sb.rpc("ponto_marcar_senha_trocada");
-        state.colaborador.must_change_password = false;
+        if (state.colaborador) state.colaborador.must_change_password = false;
       }
       state.forceChangePassword = false;
       $("modal-senha").hidden = true;
@@ -615,6 +616,84 @@
     $("falta-data").value = hoje;
     $("pres-data").value = hoje;
     await carregarFaltas();
+    await carregarAdmins();
+  }
+
+  async function carregarAdmins() {
+    const { data, error } = await sb
+      .from("ponto_admins")
+      .select("user_id, nome, email, created_at")
+      .order("created_at", { ascending: true });
+    const tbody = $("tbody-admins");
+    if (error) {
+      tbody.innerHTML = '<tr><td colspan="3" class="table-empty">Não foi possível carregar os administradores.</td></tr>';
+      return;
+    }
+    if (!data.length) {
+      tbody.innerHTML = '<tr><td colspan="3" class="table-empty">Nenhum administrador cadastrado.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data
+      .map(
+        (a) => `<tr>
+          <td>${escapeHtml(a.nome)}</td>
+          <td>${escapeHtml(a.email || "—")}</td>
+          <td>${a.created_at ? fmtDateBR(dateKeySP(a.created_at)) : "—"}</td>
+        </tr>`
+      )
+      .join("");
+  }
+
+  function resetFormNovoAdmin() {
+    $("form-novo-admin").reset();
+    $("novo-admin-msg").textContent = "";
+    $("novo-admin-msg").className = "msg";
+  }
+
+  async function onNovoAdmin(e) {
+    e.preventDefault();
+    const msg = $("novo-admin-msg");
+    msg.className = "msg";
+    msg.textContent = "";
+    const nome = $("na-nome").value.trim();
+    const email = $("na-email").value.trim().toLowerCase();
+    const senha = $("na-senha").value;
+    const senhaConfirmar = $("na-senha-confirmar").value;
+
+    if (!nome) {
+      msg.textContent = "Informe o nome do administrador.";
+      msg.className = "msg msg-error";
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      msg.textContent = "Informe um e-mail válido.";
+      msg.className = "msg msg-error";
+      return;
+    }
+    if (senha.length < 6) {
+      msg.textContent = "A senha inicial precisa ter pelo menos 6 caracteres.";
+      msg.className = "msg msg-error";
+      return;
+    }
+    if (senha !== senhaConfirmar) {
+      msg.textContent = "As senhas não conferem.";
+      msg.className = "msg msg-error";
+      return;
+    }
+
+    $("btn-novo-admin").disabled = true;
+    try {
+      await invokeFn("ponto-criar-admin", { nome, email, senha });
+      resetFormNovoAdmin();
+      msg.textContent = `Administrador "${nome}" cadastrado com sucesso! Login: ${email}. Ele(a) deverá trocar a senha no primeiro acesso.`;
+      msg.className = "msg msg-ok";
+      await carregarAdmins();
+    } catch (err) {
+      msg.textContent = err.message;
+      msg.className = "msg msg-error";
+    } finally {
+      $("btn-novo-admin").disabled = false;
+    }
   }
 
   async function carregarColaboradores() {
@@ -1143,6 +1222,7 @@
     $("form-falta").addEventListener("submit", onRegistrarFalta);
     $("falta-tipo").addEventListener("change", onFaltaTipoChange);
     $("tbody-faltas").addEventListener("click", onClickFaltasTable);
+    $("form-novo-admin").addEventListener("submit", onNovoAdmin);
     document.querySelectorAll(".tab-btn").forEach((b) => b.addEventListener("click", onClickTab));
   }
 
