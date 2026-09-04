@@ -248,6 +248,11 @@ tbody td { padding: 11px 14px; vertical-align: top; }
 .badge-red    { background: #FDECEA; color: #9C2A1C; }
 .badge-grey   { background: var(--jfl-offwhite); color: var(--jfl-text-muted); }
 
+/* ── Saldo de horas (banco de horas) ────────────────────────── */
+.saldo-negativo { color: #9C2A1C; font-weight: 600; }
+.saldo-positivo { color: #1E5FA8; font-weight: 600; }
+.saldo-neutro   { color: var(--jfl-text-muted); }
+
 /* ── Stat cards ──────────────────────────────────────────── */
 .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
 .stat-card { background: var(--jfl-white); border: 1px solid var(--jfl-border); border-radius: 0; padding: 18px 20px; }
