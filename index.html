@@ -85,6 +85,7 @@
         <button class="tab-btn" data-tab="tab-relatorio">Relatório de horas</button>
         <button class="tab-btn" data-tab="tab-presenca">Presença por prédio</button>
         <button class="tab-btn" data-tab="tab-faltas">Faltas</button>
+        <button class="tab-btn" data-tab="tab-administradores">Administradores</button>
       </div>
 
       <!-- Colaboradores -->
@@ -228,6 +229,38 @@
             <table>
               <thead><tr><th>Colaborador</th><th>Data</th><th>Tipo</th><th>Motivo</th><th>Justificada</th><th>Ações</th></tr></thead>
               <tbody id="tbody-faltas"><tr><td colspan="6" class="table-empty">Carregando…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Administradores -->
+      <div id="tab-administradores" class="tab-pane" hidden>
+        <div class="card">
+          <p class="card-title">Cadastrar administrador</p>
+          <p class="card-subtitle" style="margin-top:0;">
+            Administradores têm acesso completo ao sistema (colaboradores, relatórios, faltas e outros administradores). A senha inicial definida aqui deverá ser trocada por ele(a) no primeiro acesso.
+          </p>
+          <form id="form-novo-admin">
+            <div class="field-row">
+              <div class="field"><label for="na-nome">Nome completo</label><input id="na-nome" type="text" required /></div>
+              <div class="field"><label for="na-email">E-mail de login</label><input id="na-email" type="email" required /></div>
+            </div>
+            <div class="field-row">
+              <div class="field"><label for="na-senha">Senha inicial (mín. 6 caracteres)</label><input id="na-senha" type="password" minlength="6" required /></div>
+              <div class="field"><label for="na-senha-confirmar">Confirmar senha</label><input id="na-senha-confirmar" type="password" minlength="6" required /></div>
+            </div>
+            <button type="submit" class="btn" id="btn-novo-admin">Cadastrar</button>
+            <p class="msg" id="novo-admin-msg"></p>
+          </form>
+        </div>
+
+        <div class="card">
+          <p class="card-title">Administradores cadastrados</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Nome</th><th>E-mail</th><th>Cadastrado em</th></tr></thead>
+              <tbody id="tbody-admins"><tr><td colspan="3" class="table-empty">Carregando…</td></tr></tbody>
             </table>
           </div>
         </div>
