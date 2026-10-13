@@ -358,6 +358,7 @@
 
     if (adminRow) {
       state.isAdmin = true;
+            $("btn-topbar-trocar-senha").hidden = false;
       $("topbar-nome").textContent = adminRow.nome;
       showOnly("view-app");
       showAppSection("admin");
@@ -387,6 +388,7 @@
 
     state.isAdmin = false;
     state.colaborador = colab;
+        $("btn-topbar-trocar-senha").hidden = true;
     $("topbar-nome").textContent = colab.nome;
     $("minha-conta-cargo").textContent = colab.cargo || "—";
     showOnly("view-app");
@@ -1209,6 +1211,7 @@
     $("btn-sair").addEventListener("click", onSair);
     $("btn-bater-ponto").addEventListener("click", onBaterPonto);
     $("btn-abrir-trocar-senha").addEventListener("click", () => abrirModalSenha(false));
+        $("btn-topbar-trocar-senha").addEventListener("click", () => abrirModalSenha(false));
     $("btn-cancelar-senha").addEventListener("click", fecharModalSenha);
     $("form-trocar-senha").addEventListener("submit", onTrocarSenha);
     $("form-novo-colaborador").addEventListener("submit", onNovoColaborador);
